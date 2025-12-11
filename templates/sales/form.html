@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}فاتورة جديدة - نظام POS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">فاتورة جديدة</h1>
+</div>
+
+<form method="POST" id="invoice-form">
+    <div class="cart-container">
+        <div class="cart-items">
+            <div class="card-header">
+                <h3 class="card-title">المنتجات</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-group" style="position: relative;">
+                    <label class="form-label">بحث عن منتج (بالاسم أو الباركود)</label>
+                    <input type="text" id="product-search" class="form-control" placeholder="اكتب اسم المنتج أو امسح الباركود..." autofocus>
+                    <div id="search-results" class="product-search-results"></div>
+                </div>
+                
+                <div class="table-container" style="margin-top: 1rem;">
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                                <th>المنتج</th>
+                                <th style="width: 100px;">السعر</th>
+                                <th style="width: 100px;">الكمية</th>
+                                <th style="width: 120px;">الإجمالي</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-body">
+                            <tr id="empty-row">
+                                <td colspan="5" class="text-center text-muted" style="padding: 2rem;">
+                                    ابحث عن منتج لإضافته للفاتورة
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="text-align: left; font-weight: 600;">الإجمالي:</td>
+                                <td id="grand-total" style="font-weight: 700; font-size: 1.25rem; color: var(--primary-color);">0.00 ر.س</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="cart-summary">
+            <div class="card-header">
+                <h3 class="card-title">تفاصيل الفاتورة</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label class="form-label" for="customer_id">العميل *</label>
+                    <select id="customer_id" name="customer_id" class="form-control" required>
+                        <option value="">اختر العميل...</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="payment_method">طريقة الدفع *</label>
+                    <select id="payment_method" name="payment_method" class="form-control" required>
+                        <option value="cash">نقدي (دفع كامل)</option>
+                        <option value="installment">تقسيط</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="installments-group" style="display: none;">
+                    <label class="form-label" for="num_installments">عدد الأقساط</label>
+                    <select id="num_installments" name="num_installments" class="form-control">
+                        <option value="2">2 أقساط</option>
+                        <option value="3">3 أقساط</option>
+                        <option value="4">4 أقساط</option>
+                        <option value="6">6 أقساط</option>
+                        <option value="12">12 قسط</option>
+                    </select>
+                    <small class="text-muted">القسط الأول يستحق بعد 30 يوم</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="notes">ملاحظات</label>
+                    <textarea id="notes" name="notes" class="form-control" rows="2" placeholder="ملاحظات إضافية..."></textarea>
+                </div>
+                
+                <div style="background: var(--gray-100); padding: 1rem; border-radius: var(--border-radius); margin-top: 1rem;">
+                    <div class="flex-between mb-4">
+                        <span>الإجمالي:</span>
+                        <span id="summary-total" class="cart-total">0.00 ر.س</span>
+                    </div>
+                    <div id="installment-info" style="display: none; font-size: 0.875rem; color: var(--gray-600);">
+                        <div class="flex-between">
+                            <span>قيمة القسط:</span>
+                            <span id="installment-amount">0.00 ر.س</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    حفظ الفاتورة
+                </button>
+                
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;">إلغاء</a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const products = {{ products | tojson | safe }};
+let selectedItems = [];
+
+const searchInput = document.getElementById('product-search');
+const searchResults = document.getElementById('search-results');
+const itemsBody = document.getElementById('items-body');
+const emptyRow = document.getElementById('empty-row');
+const grandTotal = document.getElementById('grand-total');
+const summaryTotal = document.getElementById('summary-total');
+const paymentMethod = document.getElementById('payment_method');
+const installmentsGroup = document.getElementById('installments-group');
+const numInstallments = document.getElementById('num_installments');
+const installmentInfo = document.getElementById('installment-info');
+const installmentAmount = document.getElementById('installment-amount');
+
+searchInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    if (query.length < 1) {
+        searchResults.classList.remove('show');
+        return;
+    }
+    
+    const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        (p.barcode && p.barcode.toLowerCase().includes(query))
+    ).slice(0, 10);
+    
+    if (filtered.length > 0) {
+        searchResults.innerHTML = filtered.map(p => `
+            <div class="product-search-item" data-id="${p.id}">
+                <div>
+                    <strong>${p.name}</strong>
+                    ${p.barcode ? `<small style="display: block; color: var(--gray-500);">${p.barcode}</small>` : ''}
+                </div>
+                <div style="text-align: left;">
+                    <span style="font-weight: 600;">${p.price.toFixed(2)} ر.س</span>
+                    <small style="display: block; color: var(--gray-500);">المتوفر: ${p.stock_quantity}</small>
+                </div>
+            </div>
+        `).join('');
+        searchResults.classList.add('show');
+        
+        searchResults.querySelectorAll('.product-search-item').forEach(item => {
+            item.addEventListener('click', () => addProduct(parseInt(item.dataset.id)));
+        });
+    } else {
+        searchResults.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--gray-500);">لا توجد نتائج</div>';
+        searchResults.classList.add('show');
+    }
+});
+
+searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const query = this.value.trim();
+        const product = products.find(p => p.barcode === query);
+        if (product) {
+            addProduct(product.id);
+        }
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (!searchResults.contains(e.target) && e.target !== searchInput) {
+        searchResults.classList.remove('show');
+    }
+});
+
+function addProduct(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const existingIndex = selectedItems.findIndex(item => item.id === productId);
+    
+    if (existingIndex >= 0) {
+        if (selectedItems[existingIndex].quantity < product.stock_quantity) {
+            selectedItems[existingIndex].quantity++;
+        } else {
+            alert('لا يوجد كمية كافية في المخزون');
+            return;
+        }
+    } else {
+        if (product.stock_quantity < 1) {
+            alert('المنتج غير متوفر في المخزون');
+            return;
+        }
+        selectedItems.push({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            stock: product.stock_quantity
+        });
+    }
+    
+    renderItems();
+    searchInput.value = '';
+    searchResults.classList.remove('show');
+    searchInput.focus();
+}
+
+function renderItems() {
+    if (selectedItems.length === 0) {
+        emptyRow.style.display = '';
+        grandTotal.textContent = '0.00 ر.س';
+        summaryTotal.textContent = '0.00 ر.س';
+        updateInstallmentInfo();
+        return;
+    }
+    
+    emptyRow.style.display = 'none';
+    
+    const existingRows = itemsBody.querySelectorAll('tr:not(#empty-row)');
+    existingRows.forEach(row => row.remove());
+    
+    let total = 0;
+    
+    selectedItems.forEach((item, index) => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                ${item.name}
+                <input type="hidden" name="product_id[]" value="${item.id}">
+                <input type="hidden" name="price[]" value="${item.price}">
+            </td>
+            <td>${item.price.toFixed(2)} ر.س</td>
+            <td>
+                <input type="number" name="quantity[]" value="${item.quantity}" min="1" max="${item.stock}" 
+                       class="form-control" style="width: 80px;" 
+                       onchange="updateQuantity(${index}, this.value)">
+            </td>
+            <td style="font-weight: 600;">${itemTotal.toFixed(2)} ر.س</td>
+            <td>
+                <button type="button" class="btn btn-danger btn-sm btn-icon" onclick="removeItem(${index})">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </td>
+        `;
+        itemsBody.appendChild(row);
+    });
+    
+    grandTotal.textContent = total.toFixed(2) + ' ر.س';
+    summaryTotal.textContent = total.toFixed(2) + ' ر.س';
+    updateInstallmentInfo();
+}
+
+function updateQuantity(index, value) {
+    const qty = parseInt(value);
+    if (qty < 1) {
+        selectedItems[index].quantity = 1;
+    } else if (qty > selectedItems[index].stock) {
+        selectedItems[index].quantity = selectedItems[index].stock;
+        alert('الكمية المطلوبة أكبر من المتوفر في المخزون');
+    } else {
+        selectedItems[index].quantity = qty;
+    }
+    renderItems();
+}
+
+function removeItem(index) {
+    selectedItems.splice(index, 1);
+    renderItems();
+}
+
+paymentMethod.addEventListener('change', function() {
+    if (this.value === 'installment') {
+        installmentsGroup.style.display = '';
+        installmentInfo.style.display = '';
+    } else {
+        installmentsGroup.style.display = 'none';
+        installmentInfo.style.display = 'none';
+    }
+    updateInstallmentInfo();
+});
+
+numInstallments.addEventListener('change', updateInstallmentInfo);
+
+function updateInstallmentInfo() {
+    if (paymentMethod.value === 'installment' && selectedItems.length > 0) {
+        const total = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const num = parseInt(numInstallments.value);
+        const amount = total / num;
+        installmentAmount.textContent = amount.toFixed(2) + ' ر.س';
+    }
+}
+
+document.getElementById('invoice-form').addEventListener('submit', function(e) {
+    if (selectedItems.length === 0) {
+        e.preventDefault();
+        alert('يرجى إضافة منتج واحد على الأقل للفاتورة');
+        return;
+    }
+    
+    if (!document.getElementById('customer_id').value) {
+        e.preventDefault();
+        alert('يرجى اختيار العميل');
+        return;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}الأقساط - نظام POS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">متابعة الأقساط</h1>
+</div>
+
+<div class="card mb-6">
+    <div class="card-body">
+        <form method="GET" class="flex gap-4" style="flex-wrap: wrap;">
+            <div class="form-group" style="margin-bottom: 0; min-width: 200px;">
+                <label class="form-label">العميل</label>
+                <select name="customer" class="form-control">
+                    <option value="">جميع العملاء</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}" {% if customer_filter == customer.id|string %}selected{% endif %}>
+                        {{ customer.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0; min-width: 200px;">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-control">
+                    <option value="">جميع الحالات</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+                    <option value="partial" {% if status_filter == 'partial' %}selected{% endif %}>مدفوع جزئياً</option>
+                    <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>مدفوع</option>
+                    <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>متأخر</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                <button type="submit" class="btn btn-primary">تصفية</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>العميل</th>
+                    <th>رقم الفاتورة</th>
+                    <th>رقم القسط</th>
+                    <th>تاريخ الاستحقاق</th>
+                    <th>المبلغ</th>
+                    <th>المدفوع</th>
+                    <th>المتبقي</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if installments %}
+                    {% for inst in installments %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('customer_view', id=inst.invoice.customer.id) }}" style="color: var(--primary-color); text-decoration: none;">
+                                {{ inst.invoice.customer.name }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('sale_view', id=inst.invoice.id) }}" style="color: var(--primary-color); text-decoration: none;">
+                                {{ inst.invoice.invoice_number }}
+                            </a>
+                        </td>
+                        <td>{{ inst.installment_number }} / {{ inst.invoice.num_installments }}</td>
+                        <td>{{ inst.due_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ "%.2f"|format(inst.amount|float) }} ر.س</td>
+                        <td>{{ "%.2f"|format(inst.paid_amount|float) }} ر.س</td>
+                        <td>
+                            {% set remaining = inst.get_remaining() %}
+                            {% if remaining > 0 %}
+                                <span class="text-danger">{{ "%.2f"|format(remaining|float) }} ر.س</span>
+                            {% else %}
+                                <span class="text-success">0.00 ر.س</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if inst.status == 'paid' %}
+                                <span class="badge badge-success">مدفوع</span>
+                            {% elif inst.status == 'partial' %}
+                                <span class="badge badge-warning">جزئي</span>
+                            {% elif inst.status == 'overdue' %}
+                                <span class="badge badge-danger">متأخر</span>
+                            {% else %}
+                                <span class="badge badge-secondary">قيد الانتظار</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if inst.status != 'paid' %}
+                            <a href="{{ url_for('installment_pay', id=inst.id) }}" class="btn btn-success btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                دفع
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p>لا توجد أقساط بهذه المعايير</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

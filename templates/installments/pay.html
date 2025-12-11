@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}تسجيل دفعة - نظام POS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">تسجيل دفعة</h1>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">تفاصيل القسط</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 1rem;">
+                <div class="flex-between" style="padding: 0.75rem; background: var(--gray-100); border-radius: var(--border-radius);">
+                    <span>العميل:</span>
+                    <span style="font-weight: 600;">{{ installment.invoice.customer.name }}</span>
+                </div>
+                <div class="flex-between" style="padding: 0.75rem; background: var(--gray-100); border-radius: var(--border-radius);">
+                    <span>رقم الفاتورة:</span>
+                    <span style="font-weight: 600;">{{ installment.invoice.invoice_number }}</span>
+                </div>
+                <div class="flex-between" style="padding: 0.75rem; background: var(--gray-100); border-radius: var(--border-radius);">
+                    <span>القسط:</span>
+                    <span style="font-weight: 600;">{{ installment.installment_number }} / {{ installment.invoice.num_installments }}</span>
+                </div>
+                <div class="flex-between" style="padding: 0.75rem; background: var(--gray-100); border-radius: var(--border-radius);">
+                    <span>تاريخ الاستحقاق:</span>
+                    <span style="font-weight: 600;">{{ installment.due_date.strftime('%Y-%m-%d') }}</span>
+                </div>
+                <div class="flex-between" style="padding: 0.75rem; background: var(--gray-100); border-radius: var(--border-radius);">
+                    <span>مبلغ القسط:</span>
+                    <span style="font-weight: 700;">{{ "%.2f"|format(installment.amount|float) }} ر.س</span>
+                </div>
+                <div class="flex-between" style="padding: 0.75rem; background: #d1fae5; border-radius: var(--border-radius);">
+                    <span>المدفوع سابقاً:</span>
+                    <span style="font-weight: 700; color: #065f46;">{{ "%.2f"|format(installment.paid_amount|float) }} ر.س</span>
+                </div>
+                <div class="flex-between" style="padding: 0.75rem; background: #fee2e2; border-radius: var(--border-radius);">
+                    <span>المتبقي:</span>
+                    <span style="font-weight: 700; color: #991b1b;">{{ "%.2f"|format(installment.get_remaining()|float) }} ر.س</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">تسجيل الدفعة</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label class="form-label" for="amount">مبلغ الدفعة *</label>
+                    <input type="number" id="amount" name="amount" class="form-control" required 
+                           step="0.01" min="0.01" max="{{ installment.get_remaining() }}"
+                           value="{{ installment.get_remaining() }}"
+                           style="font-size: 1.5rem; text-align: center; font-weight: 700;">
+                    <small class="text-muted">الحد الأقصى: {{ "%.2f"|format(installment.get_remaining()|float) }} ر.س</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="notes">ملاحظات</label>
+                    <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="ملاحظات على الدفعة..."></textarea>
+                </div>
+                
+                <div class="flex gap-4" style="margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        تأكيد الدفع
+                    </button>
+                    <a href="{{ url_for('installments_list') }}" class="btn btn-secondary">إلغاء</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if installment.payments.count() > 0 %}
+<div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <h3 class="card-title">سجل الدفعات السابقة</h3>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>المبلغ</th>
+                    <th>ملاحظات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in installment.payments %}
+                <tr>
+                    <td>{{ payment.payment_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td style="font-weight: 600;">{{ "%.2f"|format(payment.amount|float) }} ر.س</td>
+                    <td>{{ payment.notes or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

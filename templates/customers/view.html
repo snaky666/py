@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.name }} - نظام POS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ customer.name }}</h1>
+    <div class="flex gap-2">
+        <a href="{{ url_for('customer_edit', id=customer.id) }}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            تعديل
+        </a>
+        <a href="{{ url_for('customers_list') }}" class="btn btn-secondary">عودة للقائمة</a>
+    </div>
+</div>
+
+<div class="grid-2 mb-6">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">بيانات العميل</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <span class="text-muted text-sm">الهاتف:</span>
+                    <span style="display: block; font-weight: 500;">{{ customer.phone or 'غير محدد' }}</span>
+                </div>
+                <div>
+                    <span class="text-muted text-sm">العنوان:</span>
+                    <span style="display: block; font-weight: 500;">{{ customer.address or 'غير محدد' }}</span>
+                </div>
+                <div>
+                    <span class="text-muted text-sm">الملاحظات:</span>
+                    <span style="display: block; font-weight: 500;">{{ customer.notes or 'لا توجد ملاحظات' }}</span>
+                </div>
+                <div>
+                    <span class="text-muted text-sm">تاريخ التسجيل:</span>
+                    <span style="display: block; font-weight: 500;">{{ customer.created_at.strftime('%Y-%m-%d') }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">الملخص المالي</h3>
+        </div>
+        <div class="card-body">
+            {% set total_debt = customer.get_total_debt() %}
+            {% set total_invoices = customer.invoices.count() %}
+            <div class="stats-grid" style="gap: 1rem;">
+                <div class="stat-card" style="padding: 1rem;">
+                    <div class="stat-content">
+                        <h3 style="font-size: 0.75rem;">عدد الفواتير</h3>
+                        <div class="stat-value" style="font-size: 1.5rem;">{{ total_invoices }}</div>
+                    </div>
+                </div>
+                <div class="stat-card" style="padding: 1rem;">
+                    <div class="stat-content">
+                        <h3 style="font-size: 0.75rem;">إجمالي الديون</h3>
+                        <div class="stat-value {% if total_debt > 0 %}text-danger{% else %}text-success{% endif %}" style="font-size: 1.5rem;">
+                            {{ "%.2f"|format(total_debt|float) }} ر.س
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">فواتير العميل</h3>
+        <a href="{{ url_for('sale_new') }}" class="btn btn-primary btn-sm">فاتورة جديدة</a>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الفاتورة</th>
+                    <th>الإجمالي</th>
+                    <th>المدفوع</th>
+                    <th>المتبقي</th>
+                    <th>طريقة الدفع</th>
+                    <th>الحالة</th>
+                    <th>التاريخ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if invoices %}
+                    {% for invoice in invoices %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('sale_view', id=invoice.id) }}" style="color: var(--primary-color); text-decoration: none;">
+                                {{ invoice.invoice_number }}
+                            </a>
+                        </td>
+                        <td>{{ "%.2f"|format(invoice.total_amount|float) }} ر.س</td>
+                        <td>{{ "%.2f"|format(invoice.paid_amount|float) }} ر.س</td>
+                        <td>{{ "%.2f"|format(invoice.get_remaining_balance()|float) }} ر.س</td>
+                        <td>
+                            {% if invoice.payment_method == 'cash' %}
+                                <span class="badge badge-success">نقدي</span>
+                            {% else %}
+                                <span class="badge badge-info">تقسيط ({{ invoice.num_installments }})</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if invoice.status == 'paid' %}
+                                <span class="badge badge-success">مدفوع</span>
+                            {% elif invoice.status == 'partial' %}
+                                <span class="badge badge-warning">جزئي</span>
+                            {% else %}
+                                <span class="badge badge-secondary">معلق</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted" style="padding: 2rem;">
+                            لا توجد فواتير لهذا العميل
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

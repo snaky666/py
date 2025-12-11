@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}التقارير - نظام POS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">التقارير والإحصائيات</h1>
+</div>
+
+<div class="card mb-6">
+    <div class="card-body">
+        <form method="GET" class="flex gap-4" style="flex-wrap: wrap; align-items: flex-end;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">من تاريخ</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">إلى تاريخ</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <button type="submit" class="btn btn-primary">عرض التقرير</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-content">
+            <h3>إجمالي المبيعات</h3>
+            <div class="stat-value">{{ "%.2f"|format(total_sales|float) }} ر.س</div>
+            <small class="text-muted">{{ invoices_count }} فاتورة</small>
+        </div>
+        <div class="stat-icon blue">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-content">
+            <h3>المبالغ المحصّلة</h3>
+            <div class="stat-value text-success">{{ "%.2f"|format(cash_received|float) }} ر.س</div>
+        </div>
+        <div class="stat-icon green">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-content">
+            <h3>المبالغ المعلقة</h3>
+            <div class="stat-value text-warning">{{ "%.2f"|format(pending_amount|float) }} ر.س</div>
+        </div>
+        <div class="stat-icon yellow">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-content">
+            <h3>قيمة المخزون</h3>
+            <div class="stat-value">{{ "%.2f"|format(inventory_value|float) }} ر.س</div>
+        </div>
+        <div class="stat-icon cyan">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2" style="margin-top: 2rem;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">المبيعات اليومية</h3>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>إجمالي المبيعات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if daily_sales %}
+                        {% for sale in daily_sales %}
+                        <tr>
+                            <td>{{ sale.date }}</td>
+                            <td style="font-weight: 600;">{{ "%.2f"|format(sale.total|float) }} ر.س</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted" style="padding: 2rem;">
+                                لا توجد مبيعات في هذه الفترة
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">حالة المخزون</h3>
+        </div>
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>المنتج</th>
+                        <th>الكمية</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if products_report %}
+                        {% for product in products_report %}
+                        <tr>
+                            <td>{{ product.name }}</td>
+                            <td>{{ product.stock_quantity }}</td>
+                            <td>
+                                {% if product.stock_quantity <= 0 %}
+                                    <span class="badge badge-danger">نفذ</span>
+                                {% elif product.stock_quantity <= product.min_stock_level %}
+                                    <span class="badge badge-warning">منخفض</span>
+                                {% else %}
+                                    <span class="badge badge-success">متوفر</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted" style="padding: 2rem;">
+                                لا توجد منتجات
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
